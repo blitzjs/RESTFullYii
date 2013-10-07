@@ -604,11 +604,11 @@ class ERestEventListenerRegistry
 		 * @return (Array) list of found models
 		 */
 		$onRest(ERestEvent::MODEL_FIND_ALL, function($model) {
-			if(isset($_GET['filterRelation_']))
+			if(isset($_GET['filterRelation']))
                         {
 
                       
-                            $filterItems = CJSON::decode($_GET['filterRelation_']);
+                            $filterItems = CJSON::decode($_GET['filterRelation']);
 
                             $withItems = array();
 
