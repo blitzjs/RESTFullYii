@@ -604,7 +604,101 @@ class ERestEventListenerRegistry
 		 * @return (Array) list of found models
 		 */
 		$onRest(ERestEvent::MODEL_FIND_ALL, function($model) {
-			return $model->findAll();
+			if(isset($_GET['filterRelation_']))
+                        {
+
+                      
+                            $filterItems = CJSON::decode($_GET['filterRelation_']);
+
+                            $withItems = array();
+
+                            $queries = [];
+                            $params = [];
+                            $relations = [];
+                            foreach ($filterItems as $filterItem)
+                            {                               
+                                $parts = explode(".", $filterItem['property']);
+                                $relationName = $parts[0];
+                                $field = $parts[1];
+                                $prop = $field;
+
+                                if(!in_array($relationName, $relations))
+                                {
+                                    $queries[$relationName] = "";
+                                    $params[$relationName] = [];
+                                    $relations[] = $relationName;
+                                }
+
+                                $value = $filterItem['value'];
+
+                                if(array_key_exists('operator', $filterItem) || is_array($value))
+                                {
+                                    if(!array_key_exists('operator', $filterItem))
+                                    {
+                                        $operator = 'in';
+                                    }
+                                    else
+                                    {
+                                        $operator = strtolower($filterItem['operator']);
+                                    }
+                                    switch ($operator)
+                                    {
+                                        case '=' :
+                                        case '<' :
+                                        case '<=':
+                                        case '>' :
+                                        case '>=':
+                                            $compare = " $operator :" . $prop;
+                                            $params[$relationName][(":" . $prop)] = $value;
+                                            break;
+                                        case '!=':
+                                        case '<>':
+                                            $compare = " <> :" . $prop;
+                                            $params[(":" . $prop)] = $value;
+                                            break;
+                                        default :
+                                            $compare = " = :" . $prop;
+                                            $params[(":" . $prop)] = $value;
+                                            break;
+                                    }
+                                }
+                                else
+                                {
+                                    if($cType == 'text' || $cType == 'string')
+                                    {
+                                        $compare = " LIKE :" . $prop;
+                                        $params[(":" . $prop)] = '%' . $value . '%';
+                                    }
+                                    else
+                                    {
+                                        $compare = " = :" . $prop;
+                                        $params[(":" . $prop)] = $value;
+                                    }
+                                }
+
+                                $queries[$relationName] .= (empty($queries[$relationName]) ? "(" : " AND ") . $field . $compare;
+                            }
+
+                            foreach ($queries as $key => &$value)
+                            {
+                                $value .= ")";
+                            }
+
+                            foreach ($relations as $relation)
+                            {
+                                $withItems[$relation] = array('condition' => $queries[$relation], 'params' => $params[$relation]);
+                            }
+
+                            Yii::log(print_r($withItems, true), "info");
+                            return
+                                    $model->with(
+                                            $withItems
+                                    )->findAll();
+                        }
+                        else
+                        {
+                            return $model->findAll();
+                        }
 		});
 
 		/**
